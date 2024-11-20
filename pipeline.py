@@ -9,11 +9,13 @@ class NegotiationDocumentToTranscriptMatching:
 	
 	@staticmethod
 	def dummy_decide(selected_content: NaiveDecisionParserDocument) -> bool:
-		prob_true = 0.05
+		prob_true = 0.00
 		return [random.choice([True]*int(prob_true*100) + [False]*int((1-prob_true)*100)) for content in selected_content]
 
-	def mention_tree_search(self):
+	def mention_tree_search(self) -> NaiveDecisionParserDocument:
 		"""_summary_
+
+		:return: _description_
 		"""
 
 		# Root level pass
