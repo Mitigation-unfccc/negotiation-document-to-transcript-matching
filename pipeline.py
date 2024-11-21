@@ -12,6 +12,8 @@ from langchain_openai import ChatOpenAI
 
 if load_dotenv(find_dotenv()):
 	os.environ["OPENAI_API_KEY"]: str = os.getenv('OPENAI_API_KEY')
+else:
+	raise ValueError("Please set environment variables (.env not found)")
 
 
 class Intervention(BaseModel):
@@ -129,4 +131,7 @@ if __name__ == "__main__":
 	x = NegotiationDocumentToTranscriptMatching(
 		doc_content=NaiveDecisionParser(input_path=f_input).doc_content,
 		transcript=interventions)
-	x.mention_tree_search()
+	# x.mention_tree_search()
+	for direct_mention in x.direct_mentions:
+		print(direct_mention)
+		print()
