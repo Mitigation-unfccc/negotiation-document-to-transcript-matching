@@ -8,16 +8,17 @@ from pydantic import BaseModel
 
 
 class NaiveDecisionParserTextLevel(Enum):
-		Undefined=0
-		Heading=1
-		Subheading=2
-		Subsubheading=3
-		Subsubsubheading=4
-		Subsubsubsubheading=5
-		Paragraph=6
-		Subparagraph=7
-		Subsubparagraph=8
-		Subsubsubparagraph=9
+	Undefined = 0
+	Heading = 1
+	Subheading = 2
+	Subsubheading = 3
+	Subsubsubheading = 4
+	Subsubsubsubheading = 5
+	Paragraph = 6
+	Subparagraph = 7
+	Subsubparagraph = 8
+	Subsubsubparagraph = 9
+
 
 class NaiveDecisionParserText(BaseModel):
 	level: NaiveDecisionParserTextLevel
@@ -27,9 +28,11 @@ class NaiveDecisionParserText(BaseModel):
 	text: str
 
 	def __str__(self):
-		return f"{self.parent.__str__() if self.parent is not None else ''}\n{'    '*self.level.value}{self.numbering} => {self.text}"
+		return f"{self.parent.__str__() if self.parent is not None else ''}\n{'    ' * self.level.value}{self.numbering} => {self.text}"
+
 
 NaiveDecisionParserDocument = list[NaiveDecisionParserText]
+
 
 class NaiveDecisionParser:
 	"""
@@ -40,12 +43,12 @@ class NaiveDecisionParser:
 
 	It does not parse text that is not structured or tables.
 	"""
-	
+
 	heading_numbering_pattern: str = r"((?:M{0,3})(?:CM|CD|D?C{0,3})(?:XC|XL|L?X{0,3})(?:IX|IV|V?I{0,3})\.)"  # Uppercase roman numerals.
-	subheading_numbering_pattern: str = r"([A-Z]+\.)"   # Uppercase letters.
-	subsubheading_numbering_pattern: str = r"(\d+\.)"   # Numbers.
+	subheading_numbering_pattern: str = r"([A-Z]+\.)"  # Uppercase letters.
+	subsubheading_numbering_pattern: str = r"(\d+\.)"  # Numbers.
 	subsubsubheading_numbering_pattern: str = r"(\([a-z]+\))"  # (Lowercase roman numerals)
-	
+
 	paragraph_numbering_pattern: str = r"(\d+\.)"  # Numbers.
 	subparagraph_numbering_pattern: str = r"(\([a-z]+\))"  # (Lowercase letters)
 	subsubparagraph_numbering_pattern: str = r"(\((?:m{0,3})(?:cm|cd|d?c{0,3})(?:xc|xl|l?x{0,3})(?:ix|iv|v?i{0,3})\))"  # (Lowercase roman numerals)
@@ -79,7 +82,6 @@ class NaiveDecisionParser:
 			case _:
 				raise ValueError(f"Cannot find regex numbering pattern for: {level}")
 
-
 	def __init__(self, input_path: str) -> None:
 		self.input_path = input_path
 		self.txt_path = f"{self.input_path.removesuffix('.docx')}.txt"
@@ -109,7 +111,6 @@ class NaiveDecisionParser:
 		except subprocess.CalledProcessError as e:
 			print(f"Error during export: {e}")
 
-		
 	@staticmethod
 	def load_parsed_docx_content(txt_path: str) -> list[str]:
 		"""Loads the previously parsed .docx to .txt document into a raw list of strings
@@ -122,7 +123,7 @@ class NaiveDecisionParser:
 		doc_content: list[str] = []
 		with open(file=txt_path, mode="r", encoding="utf-8") as f:
 			doc_content = f.readlines()
-		
+
 		if len(doc_content) > 0:
 			return doc_content
 		else:
@@ -175,7 +176,7 @@ class NaiveDecisionParser:
 
 	def _get_parent_text(
 			self, prev_text: NaiveDecisionParserText, text_level: NaiveDecisionParserTextLevel
-		) -> NaiveDecisionParserText:
+	) -> NaiveDecisionParserText:
 		"""_summary_
 
 		:param prev_text: _description_
@@ -196,19 +197,19 @@ class NaiveDecisionParser:
 	def _structure_clean_doc_content(self) -> NaiveDecisionParserDocument:
 		"""
 		From the clean text representation of the .txt file,
-		 parse the document into its structured version following the levels logic, where:
-		 - \t{1}Roman numeral.\s...X... is a heading
-		 - \t{2}Uppercase letters.\s...X... is a subheading
-		 - \t{3}Number.\s...X... is a subsubheading
-		 - \t{4}(Lower case letter)\s...X... is a subsubsubheading
-		 - \t{5} ? is a subsubsubsubheading
-		 - \t{6}Number.\s...X...Ending character is a paragraph
-		 - \t{7}(Lower case letter)\s...X...Ending character is a subparagraph
-		 - \t{8}(Lower case roman numeral)\s...X...Ending character is a subsubparagraph
+		parse the document into its structured version following the levels logic, where:
+			- \t{1}Roman numeral....X... is a heading
+			- \t{2}Uppercase letters....X... is a subheading
+			- \t{3}Number....X... is a subsubheading
+			- \t{4}(Lower case letter)...X... is a subsubsubheading
+			- \t{5} ? is a subsubsubsubheading
+			- \t{6}Number....X...Ending character is a paragraph
+			- \t{7}(Lower case letter)...X...Ending character is a subparagraph
+			- \t{8}(Lower case roman numeral)...X...Ending character is a subsubparagraph
 		
 		The left indentation level is needed to differentiate in confusing cases,
-		 for example when in a subparagraph the lower case letters numbering and in a subsubparagraph
-		 the lower case roman numerals can be confused,:
+			for example when in a subparagraph the lower case letters numbering and in a subsubparagraph
+			the lower case roman numerals can be confused,:
 		Subparagraph => (h) ...
 		Subsubparagraph => (i) ...
 
@@ -216,7 +217,7 @@ class NaiveDecisionParser:
 		"""
 
 		structured_doc_content: NaiveDecisionParserDocument = []
-		
+
 		prev_text: NaiveDecisionParserText | None = None
 		for line in self.clean_doc_content:
 			text_level: NaiveDecisionParserTextLevel = NaiveDecisionParserTextLevel(
@@ -242,11 +243,12 @@ class NaiveDecisionParser:
 					current_text.parent.children.append(current_text)
 				prev_text = current_text
 			else:
-				raise RuntimeError(f"Failed to match line: {line}. Expected pattern: {self.get_numbering_pattern_from_text_level(level=text_level)}")	
-		
+				raise RuntimeError(
+					f"Failed to match line: {line}. Expected pattern: {self.get_numbering_pattern_from_text_level(level=text_level)}")
+
 		return structured_doc_content
+
 
 if __name__ == "__main__":
 	f_input = "/home/ptarnav/cop29/negotiation-document-parser/Art_6.2_SBSTA_13a_DD_1stIteration_241114_published.docx"
 	x = NaiveDecisionParser(input_path=f_input)
-	
