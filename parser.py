@@ -41,7 +41,7 @@ class NaiveDecisionParser:
 	 and then custom regex templates to capture the structure of the decision document
 	Using libreoffice under the hood to simulate the export .txt option.
 
-	It does not parse text that is not structured or tables.
+	It does not parse text that is not numbered or tables.
 	"""
 
 	heading_numbering_pattern: str = r"((?:M{0,3})(?:CM|CD|D?C{0,3})(?:XC|XL|L?X{0,3})(?:IX|IV|V?I{0,3})\.)"  # Uppercase roman numerals.
@@ -102,9 +102,12 @@ class NaiveDecisionParser:
 		"""
 		# File extension validation already taken care of by libreoffice
 		try:
-			# Run LibreOffice to convert the file
+			# Run LibreOffice headless command to convert the file from .docx to .txt
 			subprocess.run(
-				["libreoffice", "--headless", "--convert-to", "txt:Text", input_path, "--outdir", "."],
+				[
+					"libreoffice", "--headless", "--convert-to", "txt:Text",
+					input_path, "--outdir", "."
+				],
 				check=True
 			)
 			print("Conversion to .txt using libreoffice successful")
@@ -167,6 +170,14 @@ class NaiveDecisionParser:
 
 	@staticmethod
 	def get_text_level(line: str) -> NaiveDecisionParserTextLevel:
+		"""Obtains the correspondent NaiveDecisionParserTextLevel
+		 based on the left indentation depth, where each depth level is represented by
+		 either 4 spaces or a \t character.
+
+		:param line: Raw line string
+		:return: NaiveDecisionParserTextLevel based on the left indentation depth
+		"""
+
 		# Match leading tabs or groups of 4 spaces
 		match = re.match(r'^((\t| {4})*)', line)
 		if match:
@@ -176,12 +187,19 @@ class NaiveDecisionParser:
 
 	def _get_parent_text(
 			self, prev_text: NaiveDecisionParserText, text_level: NaiveDecisionParserTextLevel
-	) -> NaiveDecisionParserText:
-		"""_summary_
+		) -> NaiveDecisionParserText:
+		"""Given a previous text and a the text level of the current text,
+		 find the parent text of the current text.
+		Recursive algorithm where:
+		 - When current text is a sublevel of the previous text, then it is assigned as the parent
+		 - When current text is of the same level of the previous text, then they share the parent
+		 - Otherwise, recursively do the same but with the previous text parent instead
 
-		:param prev_text: _description_
-		:param curr_text: _description_
-		:return: _description_
+		:param prev_text: Previous text used to capture the parent of the current text
+		:param text_level: Current text level (
+		 as the full current text object has not been yet constructed
+		)
+		:return: The current text parent object (None if it is a root text)
 		"""
 
 		if prev_text is not None:
@@ -208,8 +226,8 @@ class NaiveDecisionParser:
 			- \t{8}(Lower case roman numeral)...X...Ending character is a subsubparagraph
 		
 		The left indentation level is needed to differentiate in confusing cases,
-			for example when in a subparagraph the lower case letters numbering and in a subsubparagraph
-			the lower case roman numerals can be confused,:
+		 for example when in a subparagraph the lower case letters numbering and in a subsubparagraph
+		 the lower case roman numerals can be confused:
 		Subparagraph => (h) ...
 		Subsubparagraph => (i) ...
 
@@ -217,7 +235,6 @@ class NaiveDecisionParser:
 		"""
 
 		structured_doc_content: NaiveDecisionParserDocument = []
-
 		prev_text: NaiveDecisionParserText | None = None
 		for line in self.clean_doc_content:
 			text_level: NaiveDecisionParserTextLevel = NaiveDecisionParserTextLevel(
@@ -237,6 +254,7 @@ class NaiveDecisionParser:
 					text=match.group(2)
 				)
 
+				# Assign as a root of the doc content or as the child of the parent text
 				if current_text.parent is None:
 					structured_doc_content.append(current_text)
 				else:
@@ -244,11 +262,10 @@ class NaiveDecisionParser:
 				prev_text = current_text
 			else:
 				raise RuntimeError(
-					f"Failed to match line: {line}. Expected pattern: {self.get_numbering_pattern_from_text_level(level=text_level)}")
-
+					f"Failed to match line: {line}. Expected pattern: {
+						self.get_numbering_pattern_from_text_level(level=text_level)
+					}"
+				)	
+		
 		return structured_doc_content
-
-
-if __name__ == "__main__":
-	f_input = "/home/ptarnav/cop29/negotiation-document-parser/Art_6.2_SBSTA_13a_DD_1stIteration_241114_published.docx"
-	x = NaiveDecisionParser(input_path=f_input)
+	

@@ -133,9 +133,12 @@ class NegotiationDocumentToTranscriptMatching:
 		:param content: _description_
 		:return: _description_
 		"""
+		
+		# Root case
 		if len(content.children) == 0:
 			return [content]
 		
+		# Recursive case
 		unpacked_children_content: NaiveDecisionParserDocument = []
 		for children_content in content.children:
 			unpacked_children_content += self._unpack_paragraph_children(content=children_content)
