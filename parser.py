@@ -48,7 +48,7 @@ class NaiveDecisionParser:
 	heading_numbering_pattern: str = r"((?:M{0,3})(?:CM|CD|D?C{0,3})(?:XC|XL|L?X{0,3})(?:IX|IV|V?I{0,3})\.)"  # Uppercase roman numerals.
 	subheading_numbering_pattern: str = r"([A-Z]+\.)"  # Uppercase letters.
 	subsubheading_numbering_pattern: str = r"(\d+\.)"  # Numbers.
-	subsubsubheading_numbering_pattern: str = r"(\([a-z]+\))"  # (Lowercase roman numerals)
+	subsubsubheading_numbering_pattern: str = r"(\([a-z]+\))"  # (Lowercase letters)
 
 	paragraph_numbering_pattern: str = r"(\d+\.)"  # Numbers.
 	subparagraph_numbering_pattern: str = r"(\([a-z]+\))"  # (Lowercase letters)
@@ -216,15 +216,15 @@ class NaiveDecisionParser:
 	def _structure_clean_doc_content(self) -> NaiveDecisionParserDocument:
 		"""
 		From the clean text representation of the .txt file,
-		parse the document into its structured version following the levels logic, where:
-			- \t{1}Roman numeral....X... is a heading
-			- \t{2}Uppercase letters....X... is a subheading
-			- \t{3}Number....X... is a subsubheading
-			- \t{4}(Lower case letter)...X... is a subsubsubheading
+		 parse the document into its structured version following the levels logic, where:
+			- \t{1}Roman numeral. ...X... is a heading
+			- \t{2}Uppercase letters. ...X... is a subheading
+			- \t{3}Number. ...X... is a subsubheading
+			- \t{4}(Lower case letter). ..X... is a subsubsubheading
 			- \t{5} ? is a subsubsubsubheading
-			- \t{6}Number....X...Ending character is a paragraph
-			- \t{7}(Lower case letter)...X...Ending character is a subparagraph
-			- \t{8}(Lower case roman numeral)...X...Ending character is a subsubparagraph
+			- \t{6}Number. ...X...Ending character is a paragraph
+			- \t{7}(Lower case letter) ...X...Ending character is a subparagraph
+			- \t{8}(Lower case roman numeral) ...X...Ending character is a subsubparagraph
 		
 		The left indentation level is needed to differentiate in confusing cases,
 		 for example when in a subparagraph the lower case letters numbering and in a subsubparagraph

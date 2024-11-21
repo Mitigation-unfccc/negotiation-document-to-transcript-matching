@@ -1,19 +1,17 @@
 import os
 from typing import Optional
-
 from pydantic import BaseModel
-from parser import NaiveDecisionParser, NaiveDecisionParserDocument, NaiveDecisionParserText, NaiveDecisionParserTextLevel
-import random
-from dotenv import load_dotenv, find_dotenv
 
+from parser import NaiveDecisionParser, NaiveDecisionParserDocument, NaiveDecisionParserText, NaiveDecisionParserTextLevel
 from utils.prompts import DIRECT_MENTION_EXTRACTOR_PROMPT, INDIRECT_MENTION_EVALUATOR_PROMPT
 from utils.transcript_parser import TranscriptParser
 from utils.request_schemas import DirectMentionExtractor, IndirectMentionEvaluator
 from langchain_openai import ChatOpenAI
 from langchain_community.callbacks import get_openai_callback
 
+from dotenv import load_dotenv, find_dotenv
 if load_dotenv(find_dotenv()):
-	os.environ["OPENAI_API_KEY"]: str = os.getenv('OPENAI_API_KEY')
+	os.environ["OPENAI_API_KEY"] = os.getenv('OPENAI_API_KEY')
 else:
 	raise ValueError("Please set environment variables (.env not found)")
 
@@ -23,9 +21,22 @@ class Intervention(BaseModel):
 	hour: str
 	participant: str
 	paragraph: str
-	direct_mentions: Optional[list[DirectMentionExtractor]] = None
-	indirect_mentions: Optional[list[NaiveDecisionParserText]] = None
+	direct_mentions: Optional[NaiveDecisionParserDocument] = None
+	indirect_mentions: Optional[NaiveDecisionParserDocument] = None
 	contains_indirect: Optional[bool] = None
+
+	def __str__(self):
+		s: str = f"{self.participant} - [{self.hour}]\n"
+		s += f"{self.paragraph}\n"
+		if self.direct_mentions is not None:
+			s += f"{len(self.direct_mentions.references)} direct mentions:\n"
+			for direct_mention in self.direct_mentions:
+				s += f"=>\t{direct_mention}\n"
+		if self.indirect_mentions is not None:
+			s += f"{len(self.indirect_mentions)} indirect mentions:\n"
+			for indirect_mention in self.indirect_mentions:
+				s += f"=>\t{indirect_mention.__str__()}\n"
+		return s
 
 
 class NegotiationDocumentToTranscriptMatching:
@@ -58,6 +69,15 @@ class NegotiationDocumentToTranscriptMatching:
 		for intervention, direct_mention in zip(self.transcript, self.direct_mentions):
 			intervention.direct_mentions = direct_mention
 			intervention.contains_indirect = direct_mention.indirect_mention
+	
+	def _get_content_from_direct_mention(self, direct_mention: DirectMentionExtractor) -> NaiveDecisionParserText:
+		"""_summary_
+
+		:param direct_mention: _description_
+		:return: _description_
+		"""
+		
+
 
 	def contains_indirect_mentions(self):
 		"""Loops through all the interventions in the transcript searching for indirect mentions"""
@@ -72,12 +92,11 @@ class NegotiationDocumentToTranscriptMatching:
 		"""
 
 		# Root level pass
-		print("@"*42)
 		selected_content, decided_content = self._mention_tree_search_iteration(
 			selected_content=self.doc_content,
 			intervention=intervention
 		)
-		print("@"*42)
+		
 		# Tree traverse
 		while len(selected_content) != 0:
 			selected_content, _decided_content = self._mention_tree_search_iteration(
@@ -85,9 +104,7 @@ class NegotiationDocumentToTranscriptMatching:
 			intervention=intervention
 			)
 			decided_content += _decided_content
-			print("@"*42)	
 
-		print("\n############\n".join([x.__str__() for x in decided_content]))
 		return decided_content
 
 	def _mention_tree_search_iteration(
@@ -99,10 +116,14 @@ class NegotiationDocumentToTranscriptMatching:
 		:param selected_content: _description_
 		:return: _description_
 		"""
+
 		prompts = [
-			[
-				{"role": "system", "content": INDIRECT_MENTION_EVALUATOR_PROMPT.format(document=document.__str__(), intervention=intervention.paragraph)}
-			]
+			[{
+				"role": "system",
+				"content": INDIRECT_MENTION_EVALUATOR_PROMPT.format(
+					document=document.__str__(), intervention=intervention.paragraph
+				)
+			}]
 			for document in selected_content
 		]
 		with get_openai_callback() as cb:
@@ -115,13 +136,11 @@ class NegotiationDocumentToTranscriptMatching:
 			if continue_search.contains_indirect_mention:
 				if len(content.children) == 0:
 					decided_content.append(content)
-					print("! decided", content.numbering, content.text)
 				else:
 					if content.level.value >= NaiveDecisionParserTextLevel.Paragraph.value:
 						_selected_content += self._unpack_paragraph_children(content=content)
 					else:
 						_selected_content += content.children
-					print("! selected", content.numbering, content.text)
 
 		return _selected_content, decided_content
 	
@@ -152,14 +171,15 @@ class NegotiationDocumentToTranscriptMatching:
 
 if __name__ == "__main__":
 	f_input = "Art_6.2_CMA_15a_DD_Party Inputs.docx"
-	transcript_path = "A62 IC 3 1 (1).txt"
+	transcript_path = "A62 IC 3.txt"
 	parser = TranscriptParser(input_file=transcript_path, folder_name="")
 	interventions = [Intervention(**intervention_dict) for intervention_dict in parser()]
 	x = NegotiationDocumentToTranscriptMatching(
 		doc_content=NaiveDecisionParser(input_path=f_input).doc_content,
-		transcript=interventions[0:11])
+		transcript=interventions[5:11])
 	x()
 	for intervention in x.transcript:
 		print(intervention)
 		print()
-
+	print("#"*42)
+	print(x.total_cost)
