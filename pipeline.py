@@ -1,11 +1,23 @@
+from pydantic import BaseModel
+
 from parser import NaiveDecisionParser, NaiveDecisionParserDocument, NaiveDecisionParserText, NaiveDecisionParserTextLevel
 import random
+
+from utils.transcript_parser import TranscriptParser
+
+
+class Intervention(BaseModel):
+	oid: int
+	hour: str
+	participant: str
+	paragraph: str
 
 
 class NegotiationDocumentToTranscriptMatching:
 
-	def __init__(self, doc_content: NaiveDecisionParserDocument):
+	def __init__(self, doc_content: NaiveDecisionParserDocument, transcript: list[Intervention]):
 		self.doc_content: NaiveDecisionParserDocument = doc_content
+		self.transcript: list[Intervention] = transcript
 		#self._contains_direct_mentions
 	
 	@staticmethod
@@ -82,5 +94,10 @@ class NegotiationDocumentToTranscriptMatching:
 
 if __name__ == "__main__":
 	f_input = "Art_6.2_CMA_15a_DD_Party Inputs.docx"
-	x = NegotiationDocumentToTranscriptMatching(doc_content=NaiveDecisionParser(input_path=f_input).doc_content)
+	transcript_path = "A62 IC 3 1 (1).txt"
+	parser = TranscriptParser(input_file=transcript_path, folder_name="")
+	interventions = [Intervention(**intervention_dict) for intervention_dict in parser()]
+	x = NegotiationDocumentToTranscriptMatching(
+		doc_content=NaiveDecisionParser(input_path=f_input).doc_content,
+		transcript=interventions)
 	x.mention_tree_search()
