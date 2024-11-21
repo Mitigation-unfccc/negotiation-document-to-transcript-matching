@@ -10,7 +10,7 @@ class NegotiationDocumentToTranscriptMatching:
 	
 	@staticmethod
 	def dummy_decide(selected_content: NaiveDecisionParserDocument) -> bool:
-		prob_true = 0.00
+		prob_true = 0.1
 		return [random.choice([True]*int(prob_true*100) + [False]*int((1-prob_true)*100)) for content in selected_content]
 
 	def mention_tree_search(self) -> NaiveDecisionParserDocument:
@@ -78,6 +78,7 @@ class NegotiationDocumentToTranscriptMatching:
 			unpacked_children_content += self._unpack_paragraph_children(content=children_content)
 		
 		return unpacked_children_content
+
 
 if __name__ == "__main__":
 	f_input = "Art_6.2_CMA_15a_DD_Party Inputs.docx"
