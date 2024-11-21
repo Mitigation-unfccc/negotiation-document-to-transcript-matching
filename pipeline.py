@@ -1,9 +1,17 @@
-from pydantic import BaseModel
+import os
 
+from pydantic import BaseModel
 from parser import NaiveDecisionParser, NaiveDecisionParserDocument, NaiveDecisionParserText, NaiveDecisionParserTextLevel
 import random
+from dotenv import load_dotenv, find_dotenv
 
+from utils.prompts import DIRECT_MENTION_EXTRACTOR_PROMPT
 from utils.transcript_parser import TranscriptParser
+from utils.request_schemas import DirectMentionExtractor, IndirectMentionEvaluator
+from langchain_openai import ChatOpenAI
+
+if load_dotenv(find_dotenv()):
+	os.environ["OPENAI_API_KEY"]: str = os.getenv('OPENAI_API_KEY')
 
 
 class Intervention(BaseModel):
@@ -18,8 +26,29 @@ class NegotiationDocumentToTranscriptMatching:
 	def __init__(self, doc_content: NaiveDecisionParserDocument, transcript: list[Intervention]):
 		self.doc_content: NaiveDecisionParserDocument = doc_content
 		self.transcript: list[Intervention] = transcript
-		#self._contains_direct_mentions
-	
+		self._load_models()
+		self._contains_direct_mentions()
+
+	def _load_models(self):
+		"""Load the LLM models necessary to detect mentions from the document
+		:return:
+		"""
+		llm = ChatOpenAI(model="gpt-4o-mini", temperature=0.0)
+		self.direct_llm = llm.with_structured_output(DirectMentionExtractor)
+		self.indirect_llm = llm.with_structured_output(IndirectMentionEvaluator)
+
+	def _contains_direct_mentions(self):
+		"""Loops through all the interventions in the transcript searchin for direct or possible indirect mentions
+		:return:
+		"""
+		prompts = [
+			{"role": "system", "content": DIRECT_MENTION_EXTRACTOR_PROMPT.format(intervention=intervention.paragraph)}
+			for intervention in self.transcript
+		]
+		self.direct_mentions: list[DirectMentionExtractor] = self.direct_llm.batch(prompts)
+
+
+
 	@staticmethod
 	def dummy_decide(selected_content: NaiveDecisionParserDocument) -> bool:
 		prob_true = 0.1
