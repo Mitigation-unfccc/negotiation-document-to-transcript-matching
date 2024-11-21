@@ -22,9 +22,9 @@ class Intervention(BaseModel):
 	hour: str
 	participant: str
 	paragraph: str
-	direct_mentions: Optional[list[DirectMentionExtractor]]
-	indirect_mentions: Optional[list[NaiveDecisionParserText]]
-	contains_indirect: Optional[bool]
+	direct_mentions: Optional[list[DirectMentionExtractor]] = None
+	indirect_mentions: Optional[list[NaiveDecisionParserText]] = None
+	contains_indirect: Optional[bool] = None
 
 
 class NegotiationDocumentToTranscriptMatching:
