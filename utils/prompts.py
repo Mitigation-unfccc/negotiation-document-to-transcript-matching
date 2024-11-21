@@ -1,58 +1,44 @@
-DIRECT_MENTION_EXTRACTOR_PROMPT = """
-## Task Overview
-You are a highly skilled expert in negotiations and document analysis within the framework of the UNFCCC. 
-Your role is to analyze provided interventions from negotiation meetings.
-Your objective is to determine whether the intervention contains any DIRECT mention to a paragraph/section or option from a official negotiation document of the UNFCCC.
+MENTION_TREE_SEARCH_EVALUATOR_PROMPT = """
+# Task Overview
 
-## Instructions
-	1. Understand the Context
-		Carefully read the provided intervention text. 
-		Take note of any explicit or implicit connections, including references, paraphrasing, or related thematic elements.
-	2. Perform the Analysis
-		Determine if the intervention has a direct mentions or references
-		Even partial mention or relation qualifies; the intervention does not need to address the document fragment in full.
-	3. Respond Clearly
-		Return your answer in a structured format:
-		- heading_numbering: Any numbering related with a heading from a document, with the required format that is able to be parsed by regex according to the hierarchical level.
-		- paragraph_numbering: Any numbering related with a paragraph from a document, with the required format that is able to be parsed by regex according to the hierarchical level.
-		- reference_text: The exact piece of text from the intervention where you found it.
+You are an expert in negotiations and document analysis within the UNFCCC framework. Your role is to examine excerpts from official documents and interventions from negotiation sessions. Analyze both explicit and abstract connections, focusing on detecting direct mentions, especially specific paragraphs or sections explicitly referenced. The objective is to determine whether the intervention explicitly references or is conceptually related to the document excerpt, identifying all explicit mentions and thematic connections.
 
-## Response Format
-Your response must be a list with direct mentions detected plus a boolean value if there is any indirect possible mention, clarification is necessary.
+# Detailed Instructions
 
-## Intervention (Negotiation Meeting)
-{intervention}
+1. Understand the Context
 
-Approach this task methodically and with precision. Focus on identifying connections, even subtle ones, to provide an accurate assessment.
-"""
+   - **Document Structure**: Familiarize yourself with the structure and numbering of the document fragment, including section and paragraph numbers. Accurate recognition of these elements is essential for identifying direct mentions effectively.
+   - **Review the Document Fragment**: Note specific section numbers and the hierarchical structure. Understand the full context of each numbered section to evaluate potential references accurately.
+   - **Analyze the Intervention**: Identify specific mentions of section or paragraph numbers, titles, or key phrases. Pay particular attention to numeric references (e.g., "section 2.3" or "paragraph 4"). Understanding the language and intent behind the intervention will aid in establishing connections.
+   - **Explicit and Implicit Relationships**: Be mindful of explicit relationships (direct mentions or citations) and implicit relationships (thematic overlap or paraphrasing). Recognize these nuances for a comprehensive understanding of the connection between the document fragment and the intervention.
 
-INDIRECT_MENTION_EVALUATOR_PROMPT = """
-## Task Overview
-You are a highly skilled expert in negotiations and document analysis within the framework of the UNFCCC. 
-Your role is to analyze provided fragments of official documents and interventions from negotiation meetings.
-Sometimes the fragment of the document is just the title of the section, so you will need to be precise and abstract the mention to find if the section could be related with the negotiation intervention. 
-Your objective is to determine whether the intervention contains any mention of or relationship to the fragment of the official document.
+2. Perform the Analysis
 
-## Instructions
-	1. Understand the Context
-		Carefully read the fragment from the official document and the provided intervention text. 
-		Take note of any explicit or implicit connections, including references, paraphrasing, or related thematic elements.
-	2. Perform the Analysis
-		Determine if the intervention mentions, references, or is related to the official document fragment.
-		When presented with the full paragraph and not just headings do not try to force a relationship with the given negotiation document fragment, if there is an indirect mention it will be quite clear to understand the paragraph the intervention is talking about.
-	3. Respond Clearly
-		Return your answer in a structured format as a boolean value:
-		True: If there is an indirect mention or implicit relationship.
-		False: If there is no indirect mention or implicit relationship.
+   - **Identify Direct Mentions**: Evaluate whether the intervention contains direct mentions of specific paragraphs, sections, or titles. Use pattern matching to detect numeric references like "paragraph 29" or "section 2.3". Ensure numerical references in the intervention align precisely with the document fragment.
+   - **Cross-Reference Numerical Mentions**: Extract numerical references from the intervention and verify whether they match the numbering enclosed between #...# in the document fragment. Focus only on the numbering provided, not references within the paragraph text.
+   - **Identify Indirect Mentions**: Assess whether there is a conceptual or thematic relationship between the intervention and the document fragment. Confirm indirect mentions if there is a reasonable indication that the paragraph content is being referenced or recited, allowing some leeway for thematic overlap. Minimize false positives while being slightly more flexible in identifying implicit connections.
+   - **Contextual Evaluation**: Understand the broader context of the intervention, including the negotiation session and stakeholders' perspectives. This can reveal connections not immediately evident from the text.
 
-## Response Format
-Your response must be a single boolean value (True or False), followed by a brief optional explanation if further clarification is necessary.
+3. Respond Clearly
 
-## Official Document Fragment
+   - **Boolean Response**: Provide a boolean response based on your analysis:
+     - **True**: If there is an explicit or implicit mention/relationship between the intervention and the document fragment.
+     - **False**: If there is no identifiable mention or relationship.
+   - **Textual Reference**: Provide the exact text in the intervention used to evaluate the mention, including direct quotes or section numbers.
+   - **Type of Reference**: Provide the type of mention, choosing from "DIRECT" or "INDIRECT".
+
+# Response Format:
+
+Submit a single boolean value (True or False), along with the exact textual reference used to make this determination.
+
+# Input:
+
+## Negotiation Document Fragment
+
 {document}
 
-## Intervention (Negotiation Meeting)
+## Intervention
+
 {intervention}
 
-Approach this task methodically and with precision. Focus on identifying connections, even subtle ones, to provide an accurate assessment.
 """

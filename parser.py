@@ -29,7 +29,7 @@ class NaiveDecisionParserText(BaseModel):
 	text: str
 
 	def __str__(self):
-		return f"{self.parent.__str__() if self.parent is not None else ''}\n{'    ' * self.level.value}{self.numbering} => {self.text}"
+		return f"{self.parent.__str__() if self.parent is not None else ''}\n#{self.level.name} {self.numbering}#: {self.text}"
 
 
 NaiveDecisionParserDocument = list[NaiveDecisionParserText]

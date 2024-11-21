@@ -1,11 +1,13 @@
 import os
-from typing import Optional
+from typing import Optional, Literal
 from pydantic import BaseModel
 
 from parser import NaiveDecisionParser, NaiveDecisionParserDocument, NaiveDecisionParserText, NaiveDecisionParserTextLevel
-from utils.prompts import DIRECT_MENTION_EXTRACTOR_PROMPT, INDIRECT_MENTION_EVALUATOR_PROMPT
 from utils.transcript_parser import TranscriptParser
-from utils.request_schemas import DirectMentionExtractor, IndirectMentionEvaluator
+
+from utils.prompts import MENTION_TREE_SEARCH_EVALUATOR_PROMPT
+from utils.request_schemas import MentionTreeSearchEvaluator
+
 from langchain_openai import ChatOpenAI
 from langchain_community.callbacks import get_openai_callback
 
@@ -16,26 +18,27 @@ else:
 	raise ValueError("Please set environment variables (.env not found)")
 
 
+class Mention(BaseModel):
+	content: NaiveDecisionParserText
+	textual_reference: str
+	mention_type: str
+
+
 class Intervention(BaseModel):
 	oid: int
 	hour: str
 	participant: str
 	paragraph: str
-	direct_mentions: Optional[NaiveDecisionParserDocument] = None
-	indirect_mentions: Optional[NaiveDecisionParserDocument] = None
-	contains_indirect: Optional[bool] = None
+	mentions: Optional[list[Mention]] = None
 
 	def __str__(self):
 		s: str = f"{self.participant} - [{self.hour}]\n"
 		s += f"{self.paragraph}\n"
-		if self.direct_mentions is not None:
-			s += f"{len(self.direct_mentions.references)} direct mentions:\n"
-			for direct_mention in self.direct_mentions:
-				s += f"=>\t{direct_mention}\n"
-		if self.indirect_mentions is not None:
-			s += f"{len(self.indirect_mentions)} indirect mentions:\n"
-			for indirect_mention in self.indirect_mentions:
-				s += f"=>\t{indirect_mention.__str__()}\n"
+		if self.mentions is not None:
+			s += f"{len(self.mentions)} mentions:\n"
+			for mention in self.mentions:
+				s += f"Document fragment:\n\t{mention.content.__str__()}\n"
+				s += f"~[{mention.mention_type}]~>\t{mention.textual_reference}\n"
 		return s
 
 
@@ -48,44 +51,12 @@ class NegotiationDocumentToTranscriptMatching:
 		self.total_cost = 0.0
 
 	def _load_models(self):
-		"""Load the LLM models necessary to detect mentions from the document
-		:return:
+		"""Load the necessary LLMs
 		"""
 		llm = ChatOpenAI(model="gpt-4o-mini", temperature=0.0)
-		self.direct_llm = llm.with_structured_output(DirectMentionExtractor)
-		self.indirect_llm = llm.with_structured_output(IndirectMentionEvaluator)
+		self.mention_tree_search_evaluator = llm.with_structured_output(MentionTreeSearchEvaluator)
 
-	def contains_direct_mentions(self):
-		"""Loops through all the interventions in the transcript searchin for direct or possible indirect mentions
-		:return:
-		"""
-		prompts = [
-			[{"role": "system", "content": DIRECT_MENTION_EXTRACTOR_PROMPT.format(intervention=intervention.paragraph)}]
-			for intervention in self.transcript
-		]
-		with get_openai_callback() as cb:
-			self.direct_mentions: list[DirectMentionExtractor] = self.direct_llm.batch(prompts)
-		self.total_cost += cb.total_cost
-		for intervention, direct_mention in zip(self.transcript, self.direct_mentions):
-			intervention.direct_mentions = direct_mention
-			intervention.contains_indirect = direct_mention.indirect_mention
-	
-	def _get_content_from_direct_mention(self, direct_mention: DirectMentionExtractor) -> NaiveDecisionParserText:
-		"""_summary_
-
-		:param direct_mention: _description_
-		:return: _description_
-		"""
-		
-
-
-	def contains_indirect_mentions(self):
-		"""Loops through all the interventions in the transcript searching for indirect mentions"""
-		for intervention in self.transcript:
-			if intervention.contains_indirect:
-				intervention.indirect_mentions = self.mention_tree_search(intervention)
-
-	def mention_tree_search(self, intervention: Intervention) -> NaiveDecisionParserDocument:
+	def mention_tree_search(self, intervention: Intervention) -> list[Mention]:
 		"""_summary_
 
 		:return: _description_
@@ -110,7 +81,7 @@ class NegotiationDocumentToTranscriptMatching:
 	def _mention_tree_search_iteration(
 			self, selected_content: NaiveDecisionParserDocument,
 			intervention: Intervention
-		) -> tuple[NaiveDecisionParserDocument, NaiveDecisionParserDocument]:
+		) -> tuple[NaiveDecisionParserDocument, list[Mention]]:
 		"""_summary_
 
 		:param selected_content: _description_
@@ -120,22 +91,28 @@ class NegotiationDocumentToTranscriptMatching:
 		prompts = [
 			[{
 				"role": "system",
-				"content": INDIRECT_MENTION_EVALUATOR_PROMPT.format(
-					document=document.__str__(), intervention=intervention.paragraph
+				"content": MENTION_TREE_SEARCH_EVALUATOR_PROMPT.format(
+					document=document_text.__str__(), intervention=intervention.paragraph
 				)
 			}]
-			for document in selected_content
+			for document_text in selected_content
 		]
 		with get_openai_callback() as cb:
-			continue_search_batch: list[IndirectMentionEvaluator] = self.indirect_llm.batch(prompts)
+			continue_search_batch: list[MentionTreeSearchEvaluator] = self.mention_tree_search_evaluator.batch(prompts)
 		self.total_cost += cb.total_cost
 
 		_selected_content: NaiveDecisionParserDocument = []
 		decided_content: NaiveDecisionParserDocument = []
 		for content, continue_search in zip(selected_content, continue_search_batch):
-			if continue_search.contains_indirect_mention:
+			if continue_search.contains_mention:
 				if len(content.children) == 0:
-					decided_content.append(content)
+					decided_content.append(
+						Mention(
+							content=content,
+							textual_reference=continue_search.textual_reference,
+							mention_type=continue_search.mention_type
+						)
+					)
 				else:
 					if content.level.value >= NaiveDecisionParserTextLevel.Paragraph.value:
 						_selected_content += self._unpack_paragraph_children(content=content)
@@ -165,21 +142,25 @@ class NegotiationDocumentToTranscriptMatching:
 		return unpacked_children_content
 
 	def __call__(self):
-		self.contains_direct_mentions()
-		self.contains_indirect_mentions()
+		for intervention in self.transcript:
+			intervention.mentions = self.mention_tree_search(intervention=intervention)
+			print(intervention)
 
 
 if __name__ == "__main__":
 	f_input = "Art_6.2_CMA_15a_DD_Party Inputs.docx"
+	negotiation_document = NaiveDecisionParser(input_path=f_input).doc_content
+
 	transcript_path = "A62 IC 3.txt"
 	parser = TranscriptParser(input_file=transcript_path, folder_name="")
 	interventions = [Intervention(**intervention_dict) for intervention_dict in parser()]
+
 	x = NegotiationDocumentToTranscriptMatching(
-		doc_content=NaiveDecisionParser(input_path=f_input).doc_content,
-		transcript=interventions[5:11])
+		doc_content=negotiation_document, transcript=interventions
+	)
 	x()
-	for intervention in x.transcript:
-		print(intervention)
-		print()
+	with open("test.txt", "w") as f:
+		f.writelines([f"{intervention.__str__()}\n{'-'*42}\n" for intervention in x.transcript])
+		
 	print("#"*42)
 	print(x.total_cost)
