@@ -115,13 +115,13 @@ class NegotiationDocumentToTranscriptMatching:
 			if continue_search.contains_indirect_mention:
 				if len(content.children) == 0:
 					decided_content.append(content)
-					print("!decided", content.numbering, content.text)
+					print("! decided", content.numbering, content.text)
 				else:
 					if content.level.value >= NaiveDecisionParserTextLevel.Paragraph.value:
 						_selected_content += self._unpack_paragraph_children(content=content)
 					else:
 						_selected_content += content.children
-					print("!selected", content.numbering, content.text)
+					print("! selected", content.numbering, content.text)
 
 		return _selected_content, decided_content
 	
@@ -133,7 +133,7 @@ class NegotiationDocumentToTranscriptMatching:
 		:param content: _description_
 		:return: _description_
 		"""
-		
+
 		# Root case
 		if len(content.children) == 0:
 			return [content]

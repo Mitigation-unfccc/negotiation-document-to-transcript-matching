@@ -20,6 +20,7 @@ class NaiveDecisionParserTextLevel(Enum):
 	Subsubsubparagraph = 9
 
 
+
 class NaiveDecisionParserText(BaseModel):
 	level: NaiveDecisionParserTextLevel
 	parent: NaiveDecisionParserText | None
@@ -187,7 +188,7 @@ class NaiveDecisionParser:
 
 	def _get_parent_text(
 			self, prev_text: NaiveDecisionParserText, text_level: NaiveDecisionParserTextLevel
-		) -> NaiveDecisionParserText:
+		) -> NaiveDecisionParserText | None:
 		"""Given a previous text and a the text level of the current text,
 		 find the parent text of the current text.
 		Recursive algorithm where:
@@ -262,9 +263,7 @@ class NaiveDecisionParser:
 				prev_text = current_text
 			else:
 				raise RuntimeError(
-					f"Failed to match line: {line}. Expected pattern: {
-						self.get_numbering_pattern_from_text_level(level=text_level)
-					}"
+					f"Failed to match line: {line}. Expected pattern: {self.get_numbering_pattern_from_text_level(level=text_level)}"
 				)	
 		
 		return structured_doc_content
