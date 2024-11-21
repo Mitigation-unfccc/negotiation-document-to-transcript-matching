@@ -10,6 +10,7 @@ from utils.prompts import DIRECT_MENTION_EXTRACTOR_PROMPT, INDIRECT_MENTION_EVAL
 from utils.transcript_parser import TranscriptParser
 from utils.request_schemas import DirectMentionExtractor, IndirectMentionEvaluator
 from langchain_openai import ChatOpenAI
+from langchain_community.callbacks import get_openai_callback
 
 if load_dotenv(find_dotenv()):
 	os.environ["OPENAI_API_KEY"]: str = os.getenv('OPENAI_API_KEY')
@@ -33,6 +34,7 @@ class NegotiationDocumentToTranscriptMatching:
 		self.doc_content: NaiveDecisionParserDocument = doc_content
 		self.transcript: list[Intervention] = transcript
 		self._load_models()
+		self.total_cost = 0.0
 
 	def _load_models(self):
 		"""Load the LLM models necessary to detect mentions from the document
@@ -50,7 +52,9 @@ class NegotiationDocumentToTranscriptMatching:
 			[{"role": "system", "content": DIRECT_MENTION_EXTRACTOR_PROMPT.format(intervention=intervention.paragraph)}]
 			for intervention in self.transcript
 		]
-		self.direct_mentions: list[DirectMentionExtractor] = self.direct_llm.batch(prompts)
+		with get_openai_callback() as cb:
+			self.direct_mentions: list[DirectMentionExtractor] = self.direct_llm.batch(prompts)
+		self.total_cost += cb.total_cost
 		for intervention, direct_mention in zip(self.transcript, self.direct_mentions):
 			intervention.direct_mentions = direct_mention
 			intervention.contains_indirect = direct_mention.indirect_mention
@@ -101,7 +105,9 @@ class NegotiationDocumentToTranscriptMatching:
 			]
 			for document in selected_content
 		]
-		continue_search_batch: list[IndirectMentionEvaluator] = self.indirect_llm.batch(prompts)
+		with get_openai_callback() as cb:
+			continue_search_batch: list[IndirectMentionEvaluator] = self.indirect_llm.batch(prompts)
+		self.total_cost += cb.total_cost
 
 		_selected_content: NaiveDecisionParserDocument = []
 		decided_content: NaiveDecisionParserDocument = []
@@ -148,7 +154,7 @@ if __name__ == "__main__":
 	interventions = [Intervention(**intervention_dict) for intervention_dict in parser()]
 	x = NegotiationDocumentToTranscriptMatching(
 		doc_content=NaiveDecisionParser(input_path=f_input).doc_content,
-		transcript=interventions)
+		transcript=interventions[0:11])
 	x()
 	for intervention in x.transcript:
 		print(intervention)
