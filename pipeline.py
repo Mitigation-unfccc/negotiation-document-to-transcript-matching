@@ -1,11 +1,12 @@
 from parser import NaiveDecisionParser, NaiveDecisionParserDocument, NaiveDecisionParserText, NaiveDecisionParserTextLevel
 import random
 
+
 class NegotiationDocumentToTranscriptMatching:
 
 	def __init__(self, doc_content: NaiveDecisionParserDocument):
 		self.doc_content: NaiveDecisionParserDocument = doc_content
-		pass
+		#self._contains_direct_mentions
 	
 	@staticmethod
 	def dummy_decide(selected_content: NaiveDecisionParserDocument) -> bool:
@@ -34,7 +35,6 @@ class NegotiationDocumentToTranscriptMatching:
 
 		print("\n############\n".join([x.__str__() for x in decided_content]))
 
-	
 	def _mention_tree_search_iteration(
 			self, selected_content: NaiveDecisionParserDocument
 		) -> tuple[NaiveDecisionParserDocument, NaiveDecisionParserDocument]:
@@ -80,6 +80,6 @@ class NegotiationDocumentToTranscriptMatching:
 		return unpacked_children_content
 
 if __name__ == "__main__":
-	f_input = "/home/ptarnav/cop29/negotiation-document-parser/Art_6.2_SBSTA_13a_DD_1stIteration_241114_published.docx"
+	f_input = "Art_6.2_SBSTA_13a_DD_1stIteration_241114_published.docx"
 	x = NegotiationDocumentToTranscriptMatching(doc_content=NaiveDecisionParser(input_path=f_input).doc_content)
 	x.mention_tree_search()
