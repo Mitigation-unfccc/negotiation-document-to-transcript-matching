@@ -80,6 +80,6 @@ class NegotiationDocumentToTranscriptMatching:
 		return unpacked_children_content
 
 if __name__ == "__main__":
-	f_input = "Art_6.2_SBSTA_13a_DD_1stIteration_241114_published.docx"
+	f_input = "Art_6.2_CMA_15a_DD_Party Inputs.docx"
 	x = NegotiationDocumentToTranscriptMatching(doc_content=NaiveDecisionParser(input_path=f_input).doc_content)
 	x.mention_tree_search()
