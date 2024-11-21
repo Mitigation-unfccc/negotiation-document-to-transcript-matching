@@ -44,7 +44,7 @@ class NegotiationDocumentToTranscriptMatching:
 		:return:
 		"""
 		prompts = [
-			{"role": "system", "content": DIRECT_MENTION_EXTRACTOR_PROMPT.format(intervention=intervention.paragraph)}
+			[{"role": "system", "content": DIRECT_MENTION_EXTRACTOR_PROMPT.format(intervention=intervention.paragraph)}]
 			for intervention in self.transcript
 		]
 		self.direct_mentions: list[DirectMentionExtractor] = self.direct_llm.batch(prompts)
